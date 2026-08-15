@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebToPDF - Compilador de Documentación Web a PDF</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <line x1="10" y1="9" x2="8" y2="9"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="app-title">WebToPDF Compilator</h1>
+                    <p class="app-subtitle">Extrae páginas web, traduce al español y genera un PDF estructurado con Índice</p>
+                </div>
+            </div>
+            <div class="badge-tag">Español | Índice Interactivo</div>
+        </header>
+
+        <main class="main-content">
+            <!-- Step 1: Input URL and Options -->
+            <section class="card input-card" id="step-input">
+                <div class="card-header">
+                    <h2><span class="step-num">1</span> Ingresa la URL de origen</h2>
+                </div>
+                
+                <div class="form-group">
+                    <label for="url-input">URL del sitio web o documentación</label>
+                    <div class="input-with-button">
+                        <input type="url" id="url-input" placeholder="https://antigravity.google/docs/getting-started" value="https://antigravity.google/docs/getting-started" required>
+                        <button type="button" class="btn btn-secondary" id="btn-demo">Cargar Ejemplo</button>
+                    </div>
+                </div>
+
+                <div class="options-grid">
+                    <div class="form-group">
+                        <label>Alcance del Rastreo</label>
+                        <div class="radio-group">
+                            <label class="radio-card">
+                                <input type="radio" name="scopeMode" value="subpath" checked>
+                                <div>
+                                    <strong>Misma Subruta</strong>
+                                    <span>Solo enlaces bajo la ruta actual (ej. /docs/*)</span>
+                                </div>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="scopeMode" value="domain">
+                                <div>
+                                    <strong>Todo el Dominio</strong>
+                                    <span>Cualquier página dentro del mismo dominio</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max-depth">Profundidad Máxima de Enlaces</label>
+                        <div class="slider-container">
+                            <input type="range" id="max-depth" min="1" max="5" value="3">
+                            <span class="slider-value" id="max-depth-val">3 niveles</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max-pages">Límite Máximo de Páginas</label>
+                        <div class="slider-container">
+                            <input type="range" id="max-pages" min="5" max="1000" step="10" value="100">
+                            <span class="slider-value" id="max-pages-val">100 páginas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="chk-translate" checked>
+                        <span><strong>Traducción Automática al Español:</strong> Convertir automáticamente secciones en otros idiomas al español conservando formato y código.</span>
+                    </label>
+                </div>
+
+                <div class="options-grid engine-grid" id="engine-options">
+                    <div class="form-group">
+                        <label for="select-engine">Motor de Traducción</label>
+                        <select id="select-engine" class="select-input">
+                            <option value="google" selected>Google Translate (Gratuito / Sin API Key)</option>
+                            <option value="gemini">Google Gemini IA (Gemini 1.5 Flash - Requiere API Key)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group hidden" id="gemini-key-group">
+                        <label for="gemini-api-key">Clave de API de Google Gemini (GEMINI_API_KEY)</label>
+                        <div class="input-with-button">
+                            <input type="password" id="gemini-api-key" placeholder="AIzaSy..." autocomplete="off">
+                            <button type="button" class="btn btn-secondary" id="btn-test-key">Probar Clave</button>
+                        </div>
+                        <div class="key-status-msg hidden" id="gemini-key-status"></div>
+                        <span class="input-help">Consigue tu clave gratuita en <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>.</span>
+                    </div>
+                </div>
+
+                <div class="action-row">
+                    <button class="btn btn-primary" id="btn-scan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Analizar e Inspeccionar Estructura
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 2: Pre-scan Results & Page Selection -->
+            <section class="card results-scan-card hidden" id="step-scan-results">
+                <div class="card-header">
+                    <h2><span class="step-num">2</span> Inspección Previa y Selección de Páginas</h2>
+                </div>
+
+                <div class="stats-summary">
+                    <div class="stat-box">
+                        <span class="stat-label">Páginas Encontradas</span>
+                        <span class="stat-value" id="stat-total-pages">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Profundidad Máxima</span>
+                        <span class="stat-value" id="stat-max-depth">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Idioma Detectado</span>
+                        <span class="stat-value" id="stat-lang">Detectando...</span>
+                    </div>
+                </div>
+
+                <div class="tree-header">
+                    <h3>Estructura de Páginas Detectadas</h3>
+                    <div class="tree-controls">
+                        <button class="btn-text" id="btn-select-all">Seleccionar todas</button>
+                        <button class="btn-text" id="btn-deselect-all">Deseleccionar todas</button>
+                    </div>
+                </div>
+
+                <div class="pages-list-container" id="pages-tree-list">
+                    <!-- Dynamic page items -->
+                </div>
+
+                <div class="action-row">
+                    <button class="btn btn-secondary" id="btn-back-input">Modificar URL o Ajustes</button>
+                    <button class="btn btn-success" id="btn-generate">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+                        Compilar y Generar PDF en Español
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 3: Generation Progress -->
+            <section class="card progress-card hidden" id="step-progress">
+                <div class="progress-content">
+                    <div class="spinner-ring"></div>
+                    <h3 id="progress-title">Compilando sitio web a PDF...</h3>
+                    <p id="progress-detail">Extrayendo páginas y convirtiendo contenido al español</p>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-log" id="progress-log">Iniciando proceso...</div>
+                </div>
+            </section>
+
+            <!-- Step 4: Final Download Card -->
+            <section class="card success-card hidden" id="step-success">
+                <div class="success-banner">
+                    <div class="success-icon">✓</div>
+                    <h2>¡PDF Generado con Éxito!</h2>
+                    <p>El documento ha sido traducido al español, organizado con un Índice de Contenidos interactivo y formateado para impresión A4.</p>
+                </div>
+
+                <div class="doc-summary-box">
+                    <div class="doc-meta-item">
+                        <strong>Nombre del Archivo:</strong> <span id="res-filename">-</span>
+                    </div>
+                    <div class="doc-meta-item">
+                        <strong>Páginas Incluidas:</strong> <span id="res-pages-count">-</span>
+                    </div>
+                    <div class="doc-meta-item">
+                        <strong>Idioma:</strong> <span class="badge-es">Español</span>
+                    </div>
+                </div>
+
+                <div class="action-row align-center">
+                    <a href="#" class="btn btn-primary btn-large" id="btn-download" download>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Descargar PDF Compilado
+                    </a>
+                    <button class="btn btn-secondary" id="btn-restart">Compilar otra Web</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Modal de Error de Gemini -->
+        <div class="modal-overlay hidden" id="gemini-error-modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <div class="modal-icon-error">⚠️</div>
+                    <h3>Error en la Traducción con Google Gemini</h3>
+                </div>
+                <div class="modal-body">
+                    <p>La API de Google Gemini 1.5 devolvió el siguiente error:</p>
+                    <div class="error-details-box" id="gemini-error-msg">Cargando detalle del error...</div>
+                    <p class="modal-hint">¿Qué deseas hacer?</p>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="btn-fallback-google">Continuar con Google Translate (Gratuito)</button>
+                    <button class="btn btn-primary" id="btn-retry-gemini">Reintentar con Gemini IA</button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="app-footer">
+            <p>WebToPDF Exporter &copy; 2026 — Desarrollado para extracción web profesional en formato PDF.</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
