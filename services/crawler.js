@@ -1,6 +1,71 @@
 const { chromium } = require('playwright');
 const cheerio = require('cheerio');
+const dns = require('dns').promises;
 const { translateHtmlContent, translateText } = require('./translator');
+
+/**
+ * Validates URLs to prevent Server-Side Request Forgery (SSRF).
+ * Blocks private IP ranges, local domains, and invalid protocols.
+ */
+async function validateUrlAgainstSSRF(urlString) {
+    if (!urlString) throw new Error('URL vacía');
+    
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(urlString);
+    } catch {
+        throw new Error('URL con formato inválido');
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        throw new Error('Solo se permiten protocolos http y https');
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Bloquear explícitamente localhost y dominios locales antes de resolver DNS
+    if (hostname === 'localhost' || hostname.endsWith('.local') || hostname === 'loopback') {
+        throw new Error('Acceso no autorizado a host local o privado');
+    }
+
+    // Resolver DNS para validar que no apunte a una IP privada
+    try {
+        const addresses = await dns.resolve(hostname).catch(async () => {
+            const result = await dns.lookup(hostname);
+            return [result.address];
+        });
+
+        for (const ip of addresses) {
+            if (isPrivateIp(ip)) {
+                throw new Error(`La URL resuelve a una dirección IP no autorizada: ${ip}`);
+            }
+        }
+    } catch (err) {
+        if (err.message.includes('no autorizada') || err.message.includes('Acceso no autorizado')) {
+            throw err;
+        }
+        // Si no se puede resolver el DNS, el crawler fallará al conectar de todos modos.
+    }
+}
+
+function isPrivateIp(ip) {
+    if (ip === '::1' || ip.startsWith('fe80:')) return true;
+
+    const parts = ip.split('.');
+    if (parts.length === 4) {
+        const first = parseInt(parts[0], 10);
+        const second = parseInt(parts[1], 10);
+
+        if (first === 127) return true; // Loopback
+        if (first === 10) return true; // Clase A
+        if (first === 172 && (second >= 16 && second <= 31)) return true; // Clase B
+        if (first === 192 && second === 168) return true; // Clase C
+        if (first === 169 && second === 254) return true; // Link-local
+        if (first === 0) return true; // 0.0.0.0
+    }
+    return false;
+}
+
 
 /**
  * Normalizes a URL by removing hashes and trailing slashes.
@@ -50,6 +115,9 @@ function isUrlInScope(candidateUrl, startUrl, scopeMode) {
  * Fast scan of domain structure to discover pages, estimate depth levels and total pages.
  */
 async function scanDomainStructure(startUrl, scopeMode = 'subpath', maxDepth = 3, maxPagesCap = 1000) {
+    // Validar SSRF en la URL inicial
+    await validateUrlAgainstSSRF(startUrl);
+
     const normalizedStart = normalizeUrl(startUrl);
     if (!normalizedStart) throw new Error('URL inválida');
 
@@ -75,6 +143,9 @@ async function scanDomainStructure(startUrl, scopeMode = 'subpath', maxDepth = 3
             let foundLinks = [];
 
             try {
+                // Validar SSRF antes de navegar en cada iteración del crawler
+                await validateUrlAgainstSSRF(current.url);
+
                 // Fetch page HTML quickly
                 const res = await page.goto(current.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
                 if (res && res.status() === 200) {
@@ -154,6 +225,9 @@ async function extractPagesContent(pagesToExtract, options = {}, onProgress = ()
             onProgress({ current: i + 1, total, url: item.url, title: item.title, step: 'crawling' });
 
             try {
+                // Validar SSRF antes de extraer contenido de la página
+                await validateUrlAgainstSSRF(item.url);
+
                 await page.goto(item.url, { waitUntil: 'networkidle', timeout: 25000 });
                 const rawHtml = await page.content();
                 const $ = cheerio.load(rawHtml);

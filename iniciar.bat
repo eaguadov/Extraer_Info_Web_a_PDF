@@ -12,9 +12,9 @@ cd /d "%~dp0"
 
 :: Verificar si node_modules existe
 if not exist node_modules (
-    echo [1/2] Instalando paquetes y navegador de Playwright...
-    call npm install
-    call npx playwright install chromium
+    echo [1/2] Instalando paquetes y navegador de Playwright con pnpm...
+    call pnpm install
+    call pnpm exec playwright install chromium
 ) else (
     echo [1/2] Entorno verificado correctamente.
 )

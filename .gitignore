@@ -4,3 +4,5 @@ scratch/
 logs/
 .env
 *.log
+.pnpm-store/
+pnpm-lock.yaml

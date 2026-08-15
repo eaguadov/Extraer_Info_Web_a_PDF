@@ -348,7 +348,8 @@ async function generatePDF(pagesData, options = {}) {
     let browser = null;
     try {
         browser = await chromium.launch({ headless: true });
-        const page = await browser.newPage();
+        const context = await browser.newContext({ javaScriptEnabled: false });
+        const page = await context.newPage();
         await page.setContent(completeHtml, { waitUntil: 'networkidle' });
 
         await page.pdf({

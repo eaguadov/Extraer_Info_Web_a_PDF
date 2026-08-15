@@ -12,9 +12,19 @@ function getLogFilePath() {
     return path.join(LOG_DIR, `translator_${date}.log`);
 }
 
+function sanitizeMessage(msg) {
+    if (typeof msg !== 'string') return msg;
+    // Enmascarar parámetro key=...
+    let clean = msg.replace(/(key=)[a-zA-Z0-9_\-]+/g, '$1[REDACTED]');
+    // Enmascarar claves API de Google Studio (AIzaSy...)
+    clean = clean.replace(/AIzaSy[a-zA-Z0-9_\-]{31}/g, 'AIzaSy[REDACTED]');
+    return clean;
+}
+
 function logToFile(level, message) {
     const timestamp = new Date().toISOString();
-    const line = `[${timestamp}] [${level}] ${message}\n`;
+    const sanitizedMessage = sanitizeMessage(message);
+    const line = `[${timestamp}] [${level}] ${sanitizedMessage}\n`;
     console.log(line.trim());
     try { fs.appendFileSync(getLogFilePath(), line); } catch {}
 }
