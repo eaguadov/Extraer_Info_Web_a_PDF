@@ -18,6 +18,13 @@ const outputDir = path.join(__dirname, 'output');
 if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
 }
+/**
+ * Check if Gemini API Key is configured in server environment variables
+ */
+app.get('/api/check-gemini-config', (req, res) => {
+    const hasKey = !!process.env.GEMINI_API_KEY;
+    res.json({ hasKey });
+});
 
 /**
  * Verify Gemini API Key
@@ -25,12 +32,14 @@ if (!fs.existsSync(outputDir)) {
 app.post('/api/verify-gemini-key', async (req, res) => {
     try {
         const { apiKey } = req.body;
-        if (!apiKey) {
-            return res.status(400).json({ valid: false, error: 'Ingresa una Clave de API' });
+        const keyToVerify = apiKey || process.env.GEMINI_API_KEY;
+
+        if (!keyToVerify) {
+            return res.status(400).json({ valid: false, error: 'No se ha proporcionado ninguna Clave de API' });
         }
 
         const { translateText } = require('./services/translator');
-        const result = await translateText('Hello', { engine: 'gemini', geminiApiKey: apiKey });
+        const result = await translateText('Hello', { engine: 'gemini', geminiApiKey: keyToVerify });
         res.json({ valid: true, testTranslation: result });
     } catch (err) {
         res.status(400).json({ valid: false, error: err.message });

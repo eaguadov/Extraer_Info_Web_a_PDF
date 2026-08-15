@@ -52,11 +52,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnTestKey = document.getElementById('btn-test-key');
     const geminiKeyStatus = document.getElementById('gemini-key-status');
 
-    // Engine Selector listener
+    // Engine Selector listener y validación de clave de servidor
     if (selectEngine) {
-        selectEngine.addEventListener('change', (e) => {
+        selectEngine.addEventListener('change', async (e) => {
             if (e.target.value === 'gemini') {
                 geminiKeyGroup.classList.remove('hidden');
+                
+                // Consultar si el servidor ya tiene la clave configurada
+                try {
+                    const res = await fetch('/api/check-gemini-config');
+                    const data = await res.json();
+                    if (data.hasKey) {
+                        geminiApiKeyInput.placeholder = 'Clave configurada en servidor (opcional)...';
+                        geminiKeyStatus.classList.remove('hidden');
+                        geminiKeyStatus.innerHTML = '<span class="status-badge success">🟢 El servidor local ya dispone de una Clave de API activa (en archivo .env).</span>';
+                    } else {
+                        geminiApiKeyInput.placeholder = 'AIzaSy...';
+                        geminiKeyStatus.classList.add('hidden');
+                    }
+                } catch (err) {
+                    console.warn('Error al verificar configuración de Gemini:', err);
+                }
             } else {
                 geminiKeyGroup.classList.add('hidden');
             }
@@ -67,7 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnTestKey) {
         btnTestKey.addEventListener('click', async () => {
             const apiKey = geminiApiKeyInput ? geminiApiKeyInput.value.trim() : '';
-            if (!apiKey) {
+            const isPlaceholderOptional = geminiApiKeyInput && geminiApiKeyInput.placeholder.includes('opcional');
+
+            if (!apiKey && !isPlaceholderOptional) {
                 geminiKeyStatus.innerHTML = '<span class="status-badge error">❌ Ingrese una Clave API para verificar.</span>';
                 geminiKeyStatus.classList.remove('hidden');
                 return;
