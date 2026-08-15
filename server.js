@@ -106,6 +106,38 @@ app.get('/api/download/:filename', (req, res) => {
     res.download(filePath, filename);
 });
 
+/**
+ * View translation logs (latest log file)
+ */
+app.get('/api/logs', (req, res) => {
+    try {
+        const logsDir = path.join(__dirname, 'logs');
+        if (!fs.existsSync(logsDir)) {
+            return res.json({ logs: [], message: 'Sin logs disponibles' });
+        }
+
+        const logFiles = fs.readdirSync(logsDir)
+            .filter(f => f.endsWith('.log'))
+            .sort()
+            .reverse();
+
+        if (logFiles.length === 0) {
+            return res.json({ logs: [], message: 'Sin logs disponibles' });
+        }
+
+        const latestLog = fs.readFileSync(path.join(logsDir, logFiles[0]), 'utf-8');
+        const lines = latestLog.trim().split('\n').filter(Boolean);
+        
+        res.json({
+            filename: logFiles[0],
+            totalLines: lines.length,
+            logs: lines.slice(-200) // Últimas 200 líneas
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`====================================================`);
     console.log(`🚀 Servidor Web-to-PDF listo en http://localhost:${PORT}`);
